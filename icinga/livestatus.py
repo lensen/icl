@@ -5,7 +5,6 @@ Created on Oct 25, 2010
 
 '''
 
-from smdb2.v1.model import system, status
 import icinga
 import os
 import sys
@@ -104,10 +103,6 @@ def icinga_get(hostname=None, gettype=None, withcolumns=None, withfilter=None, w
 def get_monitoring_host(hostname):
     instanceport = 6557
     instancelist = []
-
-    s = system.get_list_by_functiondescription("icinga_core", status.convert_string_to_statusid("Operational"))
-    if s:
-        instancelist.extend(s)
 
     cmd_list = []
     cmd_list.append('GET hosts')
