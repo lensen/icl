@@ -169,10 +169,7 @@ def main():
         else:
             for i in options.service: servicelist.extend(i.split(','))
 
-#       use this for >= 1.6
-        instance_output = api.icinga_search("instance", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
-#       use this for < 1.6
-#        instance_output = api.icinga_search("host", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
+        instance_output = api.icinga_search("host", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
 
         try:
             instance_name = instance_output[0]['INSTANCE_NAME']
@@ -202,7 +199,6 @@ def main():
             log.debug("Performing action %s" % action)
             actiondict[action]()
 
-        controller.close()
 
 def action_status(host,servicelist):
     hostname = host.split(".")[0]
