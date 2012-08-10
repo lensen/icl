@@ -12,8 +12,8 @@ inherit git-2 distutils
 DESCRIPTION="Icinga libraries for Python and a commandline tool called icl"
 HOMEPAGE="https://github.com/hyves-org/ics"
 EGIT_REPO_URI="https://github.com/hyves-org/icl.git"
-# Pinning to 504f463
-EGIT_COMMIT="504f463"
+# Pinning to d5ad6f8
+EGIT_COMMIT="d5ad6f8"
 
 LICENSE=""
 SLOT="0"
