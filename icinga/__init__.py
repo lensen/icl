@@ -48,6 +48,12 @@ def translate_state(statenr, checktype="service"):
             3: "DOWN", "3": "DOWN",
         }
         state = host_state_map.get(statenr)
+    elif checktype == "monitoring":
+        monitoring_state_map = {
+            0: "INACTIVE", "0": "INACTIVE",
+            1: "ACTIVE", "1": "ACTIVE",
+        }
+        state = monitoring_state_map.get(statenr)
     return state
 
 def translate_enabled(enablednr):
