@@ -21,6 +21,7 @@ current_time = strftime("%Y-%m-%d %H:%M:%S")
 __config = icinga.parse_configfile(["icinga"])
 api_app_id = __config["icinga"]["api_app_id"]
 api_base_url = __config["icinga"]["api_base_url"]
+proxies = simplejson.loads(__config["icinga"]["proxies"])
 
 def icinga_search(searchtype, search_filter, search_columns, search_orderfield, search_orderdirection="ASC"):
     if api_app_id == "" or api_base_url == "":
@@ -43,7 +44,7 @@ def icinga_search(searchtype, search_filter, search_columns, search_orderfield, 
     url = api_base_url + urllib.quote(args)
     log.debug("Search URL: %s%s" % (api_base_url, args))
     try:
-        result = simplejson.load(urllib.urlopen(url))
+        result = simplejson.load(urllib.urlopen(url, proxies=proxies))
         log.debug("Search result: %s" % result)
     except ValueError:
         log.debug("Could not run jsonload on result")
@@ -76,7 +77,7 @@ def send_to_icinga(cmd,target):
     log.debug("CMD URL: %s" % api_base_url + args.replace('\'', '"'))
 
     try:
-        response = urllib.urlopen(url)
+        response = urllib.urlopen(url, proxies=proxies)
         log.debug(response.read())
         return response
     except:
