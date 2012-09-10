@@ -40,6 +40,11 @@ def setupOptions(parser):
         dest="instance",
         metavar="INSTANCE[,INSTANCE]",
         help="Print all hosts monitored by icinga instance")
+    parser.add_option("--contact",
+        action="append",
+        dest="contact",
+        metavar="CONTACT",
+        help="Print notification information for contacts")
     parser.add_option("--action", "-a",
         action="append",
         dest="action",
@@ -82,7 +87,7 @@ def setupOptions(parser):
     return parser
 
 def _validate(options, args):
-    if options.system is None and options.function is None and options.instance is None and options.silence is None and options.noise is None and options.openproblems is None and options.allproblems is None:
+    if options.system is None and options.function is None and options.instance is None and options.silence is None and options.noise is None and options.openproblems is None and options.allproblems is None and options.contact is None:
         log.fatal("No systems to select")
         return False
     return True
@@ -134,6 +139,27 @@ def main():
                     log.debug("Could not find hosts monitored by instance")
         sys.exit(0)
 
+    if options.contact != [] and options.contact is not None:
+        for contact in options.contact:
+            log.info("Contact notification status for %s" % contact)
+            print "\033[01;33m%-17s %-15s %-20s %-15s %-20s\033[0m" % ("Instance", "Host", "timeperiod", "Service", "timeperiod")
+#          use this for >= 1.6
+            instance_list = api.icinga_search("instance", [], ['INSTANCE_ID', 'INSTANCE_NAME'], "INSTANCE_NAME")
+#          use this for < 1.6
+#          instance_list = api.icinga_search("host", [], ['INSTANCE_NAME'], "INSTANCE_NAME")
+            for instance in instance_list:
+                contact_searchfilter = [ 'CONTACT_NAME|=|%s' % contact, 'CONTACT_INSTANCE_ID|=|%s' % instance['INSTANCE_ID'] ]
+                contact_searchcolumns = [ 'CONTACT_SERVICE_NOTIFICATIONS_ENABLED', 'CONTACT_HOST_NOTIFICATIONS_ENABLED', 'CONTACT_HOST_TIMEPERIOD_OBJECT_ID', 'CONTACT_SERVICE_TIMEPERIOD_OBJECT_ID' ]
+                contact_information = api.icinga_search("contact", contact_searchfilter, contact_searchcolumns, 'CONTACT_NAME')
+                # This currently depends on https://dev.icinga.org/issues/3102
+                contact_service_timeperiod = api.icinga_search("timeperiod", ['TIMEPERIOD_OBJECT_ID|=|%s' % contact_information[0]['CONTACT_SERVICE_TIMEPERIOD_OBJECT_ID'], 'TIMEPERIOD_INSTANCE_ID|=|%s' % instance['INSTANCE_ID']], ['TIMEPERIOD_NAME'], 'TIMEPERIOD_NAME')
+                contact_host_timeperiod = api.icinga_search("timeperiod", ['TIMEPERIOD_OBJECT_ID|=|%s' % contact_information[0]['CONTACT_HOST_TIMEPERIOD_OBJECT_ID'], 'TIMEPERIOD_INSTANCE_ID|=|%s' % instance['INSTANCE_ID']], ['TIMEPERIOD_NAME'], 'TIMEPERIOD_NAME')
+                print "* %-15s %-15s %-20s %-15s %-20s" % (
+                    instance['INSTANCE_NAME'],
+                    icinga.translate_enabled(contact_information[0]['CONTACT_HOST_NOTIFICATIONS_ENABLED']),
+                    contact_host_timeperiod[0]['TIMEPERIOD_NAME'],
+                    icinga.translate_enabled(contact_information[0]['CONTACT_SERVICE_NOTIFICATIONS_ENABLED']),
+                    contact_service_timeperiod[0]['TIMEPERIOD_NAME'] )
 
     if options.action is None: options.action=["status"]
 
@@ -187,8 +213,14 @@ def main():
     for host in hostlist:
         servicelist = []
         if options.service == [] or options.service is None or options.service == "all":
-            for s in api.get_services(host): servicelist.append(s)
-            servicelist.insert(0,"host")
+            services = api.get_services(host)
+            if services is not None:
+                for s in services:
+                    servicelist.append(s)
+                servicelist.insert(0,"host")
+            else:
+                log.fatal("No services found for %s" % host)
+                return False
         else:
             for i in options.service: servicelist.extend(i.split(','))
 
