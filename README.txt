@@ -1,5 +1,6 @@
 Create a config file called icl.cfg in ~/.icinga/ or /etc/icinga/ containing 
-your Icinga-web API url and and API-key which is allowed to access it.
+your Icinga-web API url and an API-key of a user which is allowed to access it
+and, if needed, proxy settings.
 
 
 Usage: icl [options]
@@ -14,6 +15,9 @@ Options:
                         Specifies the service to which an action should be
                         performed. When not specified, all services will be
                         selected
+  --instance=INSTANCE[,INSTANCE]
+                        Print all hosts monitored by icinga instance
+  --contact=CONTACT     Print notification information for contacts
   -a <action>, --action=<action>
                         Action to be performed on specified service/host:
                         - status (default):                Show status info
