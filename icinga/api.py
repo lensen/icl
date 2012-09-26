@@ -111,7 +111,10 @@ def icinga_cmd(hostname=None, cmdlist=None, services=None, targetlist={}):
     return
 
 def get_monitoring_host(hostname):
-    icinga_result = icinga_search('host', ['HOST_NAME|=|%s' % hostname], ['INSTANCE_NAME'], 'HOST_ID', 'DESC')
+#    use this for >= 1.6
+    icinga_result = icinga_search('instance', ['HOST_NAME|=|%s' % hostname], ['INSTANCE_NAME'], 'HOST_ID', 'DESC')
+#    use this for < 1.6
+#    icinga_result = icinga_search('host', ['HOST_NAME|=|%s' % hostname], ['INSTANCE_NAME'], 'HOST_ID', 'DESC')
     if icinga_result is not None and icinga_result != []:
         try :
             instancehost = icinga_result[0]['INSTANCE_NAME']

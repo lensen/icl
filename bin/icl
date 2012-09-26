@@ -224,7 +224,10 @@ def main():
         else:
             for i in options.service: servicelist.extend(i.split(','))
 
-        instance_output = api.icinga_search("host", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
+#       use this for >= 1.6
+        instance_output = api.icinga_search("instance", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
+#       use this for < 1.6
+#        instance_output = api.icinga_search("host", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
 
         try:
             instance_name = instance_output[0]['INSTANCE_NAME']
