@@ -13,9 +13,7 @@ import simplejson
 import logging
 
 import icinga
-from icinga import api
-from icinga import livestatus
-from icinga import set_loglevel
+from icinga.api import API
 
 log = logging.getLogger("icinga.icl")
 
@@ -40,6 +38,12 @@ def setupOptions(parser):
         dest="instance",
         metavar="INSTANCE[,INSTANCE]",
         help="Print all hosts monitored by icinga instance")
+    parser.add_option("--config",
+        action="store",
+        default="icinga",
+        dest="configsection",
+        metavar="CONFIGSECTION",
+        help="Use this section of the configuration file")
     parser.add_option("--contact",
         action="append",
         dest="contact",
@@ -48,6 +52,7 @@ def setupOptions(parser):
     parser.add_option("--action", "-a",
         action="append",
         dest="action",
+        default=["status"],
         metavar="<action>",
         help="Action to be performed on specified service/host:     \
         - status (default):                Show status info         \
@@ -100,11 +105,13 @@ def main():
     log.setLevel(icinga.get_loglevel(options.loglevel))
     icinga.set_loglevel(options.loglevel)
 
+    global api
+    api = API(options.configsection)
     now = time.time()
 
     if not _validate(options, args):
         parser.print_help()
-        return 1
+        sys.exit(1)
 
     hostlist = []
     if options.system != [] and options.system is not None:
@@ -132,7 +139,6 @@ def main():
             print "\033[01;33m%-42s %-15s\033[0m" % ("Hostname", "Monitoring state")
             for result in host_searchoutput:
                 try:
-                #hostlist.append(result['HOST_NAME'])
                     monitoring_state = icinga.translate_state(result['HOST_IS_ACTIVE'], "monitoring")
                     print "* %-40s %-15s" % (result['HOST_NAME'], monitoring_state)
                 except:
@@ -143,15 +149,11 @@ def main():
         for contact in options.contact:
             log.info("Contact notification status for %s" % contact)
             print "\033[01;33m%-17s %-15s %-20s %-15s %-20s\033[0m" % ("Instance", "Host", "timeperiod", "Service", "timeperiod")
-#          use this for >= 1.6
             instance_list = api.icinga_search("instance", [], ['INSTANCE_ID', 'INSTANCE_NAME'], "INSTANCE_NAME")
-#          use this for < 1.6
-#          instance_list = api.icinga_search("host", [], ['INSTANCE_NAME'], "INSTANCE_NAME")
             for instance in instance_list:
                 contact_searchfilter = [ 'CONTACT_NAME|=|%s' % contact, 'CONTACT_INSTANCE_ID|=|%s' % instance['INSTANCE_ID'] ]
                 contact_searchcolumns = [ 'CONTACT_SERVICE_NOTIFICATIONS_ENABLED', 'CONTACT_HOST_NOTIFICATIONS_ENABLED', 'CONTACT_HOST_TIMEPERIOD_OBJECT_ID', 'CONTACT_SERVICE_TIMEPERIOD_OBJECT_ID' ]
                 contact_information = api.icinga_search("contact", contact_searchfilter, contact_searchcolumns, 'CONTACT_NAME')
-                # This currently depends on https://dev.icinga.org/issues/3102
                 contact_service_timeperiod = api.icinga_search("timeperiod", ['TIMEPERIOD_OBJECT_ID|=|%s' % contact_information[0]['CONTACT_SERVICE_TIMEPERIOD_OBJECT_ID'], 'TIMEPERIOD_INSTANCE_ID|=|%s' % instance['INSTANCE_ID']], ['TIMEPERIOD_NAME'], 'TIMEPERIOD_NAME')
                 contact_host_timeperiod = api.icinga_search("timeperiod", ['TIMEPERIOD_OBJECT_ID|=|%s' % contact_information[0]['CONTACT_HOST_TIMEPERIOD_OBJECT_ID'], 'TIMEPERIOD_INSTANCE_ID|=|%s' % instance['INSTANCE_ID']], ['TIMEPERIOD_NAME'], 'TIMEPERIOD_NAME')
                 print "* %-15s %-15s %-20s %-15s %-20s" % (
@@ -161,20 +163,11 @@ def main():
                     icinga.translate_enabled(contact_information[0]['CONTACT_SERVICE_NOTIFICATIONS_ENABLED']),
                     contact_service_timeperiod[0]['TIMEPERIOD_NAME'] )
 
-    if options.action is None: options.action=["status"]
-
     if options.silence is not None or options.noise is not None:
-#       use this for >= 1.6
-        instance_list = api.icinga_search("instance", [], ['INSTANCE_NAME'], "INSTANCE_NAME")
-#       use this for < 1.6
-#        instance_list = api.icinga_search("host", [], ['INSTANCE_NAME'], "INSTANCE_NAME")
         if options.silence:
-            action = "DISABLE"
+            api.disable_instance_notifications()
         if options.noise:
-            action = "ENABLE"
-        for instance in instance_list:
-            log.info("Setting global notifications on %s to %s" % (instance['INSTANCE_NAME'], action))
-            livestatus.icinga_cmd(None, ["%s_NOTIFICATIONS" % action], instance['INSTANCE_NAME'])
+            api.enable_instance_notifications()
 
     if options.allproblems is not None or options.openproblems is not None:
         if options.openproblems is not None:
@@ -224,16 +217,14 @@ def main():
         else:
             for i in options.service: servicelist.extend(i.split(','))
 
-#       use this for >= 1.6
         instance_output = api.icinga_search("instance", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
-#       use this for < 1.6
-#        instance_output = api.icinga_search("host", ["HOST_NAME|=|%s" % host], ['INSTANCE_NAME'], "INSTANCE_NAME")
 
         try:
             instance_name = instance_output[0]['INSTANCE_NAME']
             log.info("%s is monitored by %s" % (host, instance_name))
         except:
-            log.warning("No monitoring instance found for %s" % host)
+            log.error("No monitoring instance found for %s" % host)
+            return False
 
         if options.force: force = "force"
         else: force = ""
@@ -252,7 +243,7 @@ def main():
                 "remove-acknowledgement": lambda: action_removeack(host,servicelist),
                 "remove-ack":   lambda: action_removeack(host,servicelist)
         }
-
+        if len(options.action) > 1: options.action.remove("status")
         for action in options.action:
             log.debug("Performing action %s" % action)
             actiondict[action]()
@@ -284,7 +275,7 @@ def action_status(host,servicelist):
                         hoststatus_output[0]['HOST_MAX_CHECK_ATTEMPTS'],
                         hoststatus_output[0]['HOST_OUTPUT'])
             except:
-                print "* There was a problem retrieving data from the API"
+                log.error("No data received from the API")
 
             if status_service == "host":
                 continue
@@ -310,7 +301,9 @@ def action_status(host,servicelist):
                         servicestatus['SERVICE_MAX_CHECK_ATTEMPTS'],
                         servicestatus['SERVICE_OUTPUT'] )
                 except:
-                    print "* There was a problem retrieving data from the API"
+                    log.error("No data received from the API")
+        else:
+            log.error("No data received from the API")
 
 def action_check(host,servicelist,force):
     api.schedule_check(host, servicelist, force)

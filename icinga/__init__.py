@@ -1,10 +1,8 @@
-import os
 import sys
 import logging
-import ConfigParser
 
 log = logging.getLogger(__name__)
-logformat="%(name)s -> %(message)s"
+logformat="[%(levelname)s] %(name)s -> %(message)s"
 loglevel=logging.INFO
 logging.basicConfig(format=logformat)
 log.setLevel(loglevel)
@@ -84,21 +82,4 @@ def exit_unknown(mesg):
     print mesg
     sys.exit(translate_state("UNKNOWN"))
 
-def parse_configfile(sectionlist=[]):
-    configlocations = [ os.path.expanduser("~/.icinga/icl.cfg"), "/etc/icinga/icl.cfg" ]
-
-    config = ConfigParser.RawConfigParser()
-    log.debug("Trying to load configfiles: %s" % configlocations)
-    ConfigFiles_InUse = config.read(configlocations)
-    log.debug("Loaded configfiles: %s" % ConfigFiles_InUse)
-
-    myconfig = {}
-    for section in sectionlist:
-        try:
-            myconfig[section] = dict(config.items(section))
-            log.debug("Values in section %s are: %s", section, myconfig[section])
-        except ConfigParser.NoSectionError, exc:
-            log.debug("Can't find section %s in %s", exc.section, ConfigFiles_InUse)
-            raise ConfigFileError("Missing mandatory section(s) %s in configfile(s) %s" % (exc.section, ConfigFiles_InUse))
-    return myconfig
 
