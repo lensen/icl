@@ -1,3 +1,5 @@
+NOTE: Sending commands to Icinga 1.10 is currently broken due to some code changes in Icinga-Web 1.10!
+
 Create a config file called icl.cfg in ~/.icinga/ or /etc/icinga/ containing 
 your Icinga-web API url and an API-key of a user which is allowed to access it
 and, if needed, proxy settings.
