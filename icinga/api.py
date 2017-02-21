@@ -91,7 +91,7 @@ class API:
         params["authkey"] = self.api_app_id
         args = "/cmd"
         for param in params:
-            args = args + "/%s=%s" % (param, params[param])
+            args = args + "%s=%s" % (param, params[param])
 
         url = self.api_base_url + urllib.quote(args.replace('\'', '"'))
         log.debug("CMD URL: %s" % self.api_base_url + args.replace('\'', '"'))
